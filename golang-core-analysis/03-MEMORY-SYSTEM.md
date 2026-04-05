@@ -229,6 +229,252 @@ sessions/session-store.ts ──→ Persiste mensagens (MTM)
 hooks/bundled/session-memory/ ──→ Captura para LTM
 ```
 
+## 5. Memory Host SDK Detalhado (`src/memory-host-sdk/`)
+
+O SDK é muito mais rico do que a interface básica. Contém contratos para embedding, storage, QMD queries e dreaming.
+
+### Arquivos do Host SDK
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/memory-host-sdk/engine.ts` | Contrato agregado de todas as superfícies do memory engine |
+| `src/memory-host-sdk/engine-foundation.ts` | Contrato de fundação: agent scope, memory search config, state dir |
+| `src/memory-host-sdk/engine-storage.ts` | Contrato de storage/index helpers |
+| `src/memory-host-sdk/engine-qmd.ts` | Contrato QMD (Query Markdown) - session/query helpers |
+| `src/memory-host-sdk/engine-embeddings.ts` | Contrato de embedding providers e batch helpers |
+| `src/memory-host-sdk/dreaming.ts` | **Tipos de dreaming**: light, deep, REM sleep |
+| `src/memory-host-sdk/multimodal.ts` | Handling de conteúdo multimodal |
+| `src/memory-host-sdk/query.ts` | Contrato de processamento de queries |
+| `src/memory-host-sdk/runtime-core.ts` | Definições de runtime core |
+| `src/memory-host-sdk/runtime-cli.ts` | Utilidades CLI de runtime |
+| `src/memory-host-sdk/runtime-files.ts` | Runtime de handling de arquivos |
+| `src/memory-host-sdk/status.ts` | Formatação de status |
+
+### Embedding Infrastructure (`src/memory-host-sdk/host/`)
+
+~60 arquivos para infraestrutura de embeddings:
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/memory-host-sdk/host/embeddings.ts` | Orquestração de embedding providers |
+| `src/memory-host-sdk/host/embeddings-gemini.ts` | Provider Gemini |
+| `src/memory-host-sdk/host/embeddings-mistral.ts` | Provider Mistral |
+| `src/memory-host-sdk/host/embeddings-ollama.ts` | Provider Ollama |
+| `src/memory-host-sdk/host/embeddings-openai.ts` | Provider OpenAI |
+| `src/memory-host-sdk/host/embeddings-voyage.ts` | Provider Voyage |
+| `src/memory-host-sdk/host/batch-*.ts` | Batch embedding runners por provider |
+| `src/memory-host-sdk/host/embedding-chunk-limits.ts` | Limites de chunking |
+| `src/memory-host-sdk/host/embedding-input-limits.ts` | Limites de input |
+| `src/memory-host-sdk/host/embedding-model-limits.ts` | Limites por modelo |
+| `src/memory-host-sdk/host/query-expansion.ts` | Expansão de queries para melhor recall |
+| `src/memory-host-sdk/host/qmd-process.ts` | Execução de comandos QMD CLI |
+| `src/memory-host-sdk/host/qmd-query-parser.ts` | Parse de resultados QMD |
+| `src/memory-host-sdk/host/qmd-scope.ts` | Constraints de scope QMD |
+| `src/memory-host-sdk/host/memory-schema.ts` | Schema SQLite |
+| `src/memory-host-sdk/host/sqlite.ts` | Driver SQLite |
+| `src/memory-host-sdk/host/sqlite-vec.ts` | Driver SQLite com vector search |
+
+## 6. Memory Core Extension Detalhado (`extensions/memory-core/`)
+
+### Core Memory Manager (~35 arquivos)
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/memory/manager.ts` | **MemoryIndexManager** - gerencia SQLite vector/FTS indices, embedding sync, readonly recovery, batch operations |
+| `extensions/memory-core/src/memory/manager-embedding-ops.ts` | Operações de batch embedding |
+| `extensions/memory-core/src/memory/manager-search.ts` | Busca em memória (vector + keyword) |
+| `extensions/memory-core/src/memory/manager-sync-ops.ts` | File sync e indexação |
+
+### Algoritmos de Busca
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/memory/hybrid.ts` | **Busca híbrida** BM25 + vector similarity |
+| `extensions/memory-core/src/memory/mmr.ts` | **MMR** (Maximal Marginal Relevance) - ranking por diversidade |
+| `extensions/memory-core/src/memory/temporal-decay.ts` | **Temporal decay** - scoring por recência |
+
+### Short-Term Promotion (Promoção de Memória)
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/short-term-promotion.ts` | **Promoção weights-based** (~40KB) - promove de daily files para long-term memory. Rastreia recall history com métricas: frequency, relevance, diversity, recency, consolidation, conceptual |
+| `extensions/memory-core/src/concept-vocabulary.ts` | Deriva concept tags do conteúdo |
+| `extensions/memory-core/src/flush-plan.ts` | Planeja flush de memória baseado em token budgets |
+| `extensions/memory-core/src/prompt-section.ts` | Gera contexto de memória para prompts |
+
+### Tools Expostas ao Agente
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/tools.ts` | Tools `memory_search` e `memory_get` |
+| `extensions/memory-core/src/tools.citations.ts` | Tracking de citações de recall |
+| `extensions/memory-core/src/tools.recall-tracking.ts` | Rastreia o que foi recalled e quando |
+
+### CLI de Memória
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/cli.ts` | Interface CLI (~7KB) |
+| `extensions/memory-core/src/cli.runtime.ts` | Implementação completa (~47KB, 20+ comandos) |
+
+## 7. Sistema de Dreaming (Processamento de Memória em Background)
+
+O OpenClaw implementa um sistema inspirado em sono humano para consolidar memórias:
+
+### Arquivos
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `extensions/memory-core/src/dreaming.ts` | **Dreaming principal** (~40KB) - promoção de short-term com cron scheduling |
+| `extensions/memory-core/src/dreaming-command.ts` | Comando CLI para dreaming manual |
+| `extensions/memory-core/src/dreaming-phases.ts` | **Fases de dreaming** (~200+ linhas) - light e REM sleep |
+| `extensions/memory-core/src/dreaming-markdown.ts` | Escrita de relatórios de dreaming em markdown |
+
+### Fases de Dreaming
+
+```
+LIGHT SLEEP (A cada 6 horas)
+├── Deduplica entries recentes dos daily memory files
+├── Source: últimos 2 dias de memory files + session recall
+├── Limite: 100 entries max
+└── Output: relatórios inline ou separados
+
+DEEP SLEEP (Diariamente às 3 AM)
+├── Promove high-scoring short-term recalls para MEMORY.md
+├── Sources: daily files, memory indices, sessions, logs, recalls
+├── Scoring: fórmula ponderada
+│   ├── frequency:     0.24
+│   ├─�� relevance:     0.30
+│   ���── diversity:     0.15
+│   ├── recency:       0.15
+│   ├── consolidation: 0.10
+│   └��─ conceptual:    0.06
+├── Thresholds: min score 0.8, min recall count 3, min unique queries 3
+├── Recovery mode: auto-repair se health < 35%
+└── Limite: 10 entries max por run
+
+REM SLEEP (Semanalmente, Domingo 5 AM)
+├── Descoberta de padrões e síntese cross-cutting
+├── Lookback: 7 dias
+├── Identifica meta-patterns
+└���─ Limite: 10 entries max
+```
+
+### Configuração de Dreaming
+
+```
+Speed:    fast | balanced | slow
+Thinking: low | medium | high
+Budget:   cheap | medium | expensive
+(Configurável por fase)
+```
+
+## 8. Agent-Level Memory
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/agents/memory-search.ts` | **Config de busca por agente** (~100+ linhas). Hybrid search (vector + keyword) com MMR e temporal decay. FTS tokenizer (unicode61 ou trigram). Chunking params (token size 400 default, overlap 80). Sync strategies (on start, on search, watch, interval) |
+| `src/agents/subagent-registry-memory.ts` | Handling de memória para spawning de subagents |
+| `src/agents/pi-embedded-runner/run/attempt.memory-flush-forwarding.ts` | Forwarding de memory flush durante agent runs |
+
+## 9. Plugin SDK Facades para Memória
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/plugin-sdk/memory-core.ts` | Superfície principal do SDK de memória |
+| `src/plugin-sdk/memory-core-host-engine-foundation.ts` | Contratos de fundação |
+| `src/plugin-sdk/memory-core-host-engine-storage.ts` | Contratos de storage |
+| `src/plugin-sdk/memory-core-host-engine-qmd.ts` | Contratos de query QMD |
+| `src/plugin-sdk/memory-core-host-engine-embeddings.ts` | Contratos de embedding |
+| `src/plugin-sdk/memory-core-host-runtime-core.ts` | Tipos de runtime core |
+| `src/plugin-sdk/memory-core-host-runtime-cli.ts` | Helpers de runtime CLI |
+| `src/plugin-sdk/memory-core-host-runtime-files.ts` | Operações de runtime de arquivos |
+| `src/plugin-sdk/memory-core-host-status.ts` | Resolução de config de dreaming |
+| `src/plugin-sdk/memory-core-host-query.ts` | Utilidades de query |
+| `src/plugin-sdk/memory-core-host-secret.ts` | Handling de secrets |
+| `src/plugin-sdk/memory-core-host-multimodal.ts` | Suporte multimodal |
+| `src/plugin-sdk/memory-lancedb.ts` | SDK do plugin LanceDB |
+| `src/plugin-sdk/webhook-memory-guards.ts` | Guards de segurança para operações webhook |
+
+## 10. Session Store Detalhado (`src/config/sessions/`)
+
+~26 arquivos para gerenciamento completo de sessões:
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/config/sessions/store.ts` | **Store principal** com disk locking, caching, maintenance |
+| `src/config/sessions/store-cache.ts` | Camada de cache |
+| `src/config/sessions/store-load.ts` | Loading de session stores do disco |
+| `src/config/sessions/store-lock-state.ts` | Fila de write locks |
+| `src/config/sessions/store-maintenance.ts` | Pruning, rotation, disk budget |
+| `src/config/sessions/store-pruning.ts` | Lógica de pruning de entries |
+| `src/config/sessions/store-migrations.ts` | Migrações de dados |
+| `src/config/sessions/store-read.ts` | Acesso read-only |
+| `src/config/sessions/transcript.ts` | **Append e gerenciamento** de transcript entries |
+| `src/config/sessions/transcript-mirror.ts` | Mirroring de texto de transcript |
+| `src/config/sessions/transcript-events.ts` | Broadcasting de eventos de transcript |
+| `src/config/sessions/targets.ts` | Resolução e filtragem de targets |
+| `src/config/sessions/metadata.ts` | Derivação e atualização de metadata |
+| `src/config/sessions/paths.ts` | Resolução de paths (10+ helpers) |
+| `src/config/sessions/session-key.ts` | Normalização e parsing de session key |
+| `src/config/sessions/session-id.ts` | Handling de session ID |
+| `src/config/sessions/main-session.ts` | Gerenciamento de sessão principal |
+| `src/config/sessions/group.ts` | Lógica de agrupamento de sessões |
+| `src/config/sessions/disk-budget.ts` | Enforcement de quota de disco |
+| `src/config/sessions/reset.ts` | Operações de reset/cleanup |
+| `src/config/sessions/delivery-info.ts` | Info de contexto de delivery |
+| `src/config/sessions/send-policy.ts` | Enforcement de send policy |
+
+## 11. Estruturas de Dados Chave
+
+### Short-Term Recall Entry
+```typescript
+{
+  key: string,
+  path: string,
+  startLine: number,
+  endLine: number,
+  snippet: string,
+  recallCount: number,
+  totalScore: number,
+  maxScore: number,
+  firstRecalledAt: Date,
+  lastRecalledAt: Date,
+  queryHashes: string[],     // max 32
+  recallDays: string[],      // max 16
+  conceptTags: string[],
+  promotedAt?: Date
+}
+```
+
+### Memory Entry (LanceDB)
+```typescript
+{
+  id: string,
+  text: string,
+  vector: number[],
+  importance: number,
+  category: string,          // facts, interactions, learnings, preferences, goals
+  createdAt: Date
+}
+```
+
+### Session Entry
+```typescript
+{
+  sessionId: string,
+  updatedAt: Date,
+  sessionFile?: string,
+  spawnedBy?: string,
+  parentSessionKey?: string,
+  forkedFromParent?: boolean,
+  spawnDepth?: number,
+  subagentRole?: string,
+  lastHeartbeatText?: string,
+  lastHeartbeatSentAt?: Date
+}
+```
+
 ## Mapeamento para Go + GORM
 
 ### Structs
@@ -293,6 +539,56 @@ func AutoMigrate(db *gorm.DB) {
         &SessionMessage{},
         &Memory{},
     )
+}
+```
+
+### Structs Adicionais para Dreaming/Recall
+
+```go
+// Short-term recall tracking
+type RecallEntry struct {
+    gorm.Model
+    AgentID         uint      `gorm:"index;not null"`
+    Key             string    `gorm:"not null"`
+    Path            string
+    StartLine       int
+    EndLine         int
+    Snippet         string    `gorm:"type:text"`
+    RecallCount     int       `gorm:"default:0"`
+    TotalScore      float64   `gorm:"default:0"`
+    MaxScore        float64   `gorm:"default:0"`
+    FirstRecalledAt time.Time
+    LastRecalledAt  time.Time
+    QueryHashes     datatypes.JSON // []string max 32
+    RecallDays      datatypes.JSON // []string max 16
+    ConceptTags     datatypes.JSON // []string
+    PromotedAt      *time.Time
+}
+
+// Dreaming job tracking
+type DreamingRun struct {
+    gorm.Model
+    AgentID       uint      `gorm:"index;not null"`
+    Phase         string    `gorm:"not null"` // light, deep, rem
+    Status        string    `gorm:"not null"` // running, completed, failed
+    EntriesInput  int
+    EntriesOutput int
+    PromotedCount int
+    Report        string    `gorm:"type:text"`
+    StartedAt     time.Time
+    CompletedAt   *time.Time
+    Error         *string
+}
+
+// Embedding cache
+type EmbeddingCache struct {
+    gorm.Model
+    ContentHash string    `gorm:"uniqueIndex;not null"`
+    Provider    string    `gorm:"not null"`
+    Model       string    `gorm:"not null"`
+    Vector      []byte    `gorm:"not null"` // serialized float32 array
+    Dimensions  int
+    CreatedAt   time.Time
 }
 ```
 
