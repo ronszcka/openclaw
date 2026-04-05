@@ -261,6 +261,75 @@ pi-embedded-subscribe.ts
       └── stop_reason → finaliza ou continua loop
 ```
 
+## 9. Transport Layer (Camada de Transporte HTTP)
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/agents/provider-transport-stream.ts` | Criação de stream function com awareness de transporte |
+| `src/agents/provider-transport-fetch.ts` | HTTP fetch wrapper com error handling |
+| `src/agents/openai-transport-stream.ts` | Streaming da API OpenAI (ChatCompletion, Responses) |
+| `src/agents/anthropic-transport-stream.ts` | Streaming da API Anthropic Messages |
+| `src/agents/google-transport-stream.ts` | Streaming da API Google Generative AI |
+| `src/agents/openai-ws-stream.ts` | Suporte WebSocket para OpenAI |
+| `src/agents/anthropic-vertex-stream.ts` | Suporte a AWS Bedrock vertex |
+| `src/agents/transport-stream-shared.ts` | Utilidades compartilhadas de transporte |
+| `src/agents/transport-message-transform.ts` | Transformação de formato de mensagens entre APIs |
+
+## 10. Error Handling e Recovery
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/agents/pi-embedded-helpers/errors.ts` | **Classificação de erros**: billing, rate limit, auth, context overflow |
+| `src/agents/pi-embedded-helpers/provider-error-patterns.ts` | Pattern matching de erros por provider |
+| `src/agents/pi-embedded-runner/run/assistant-failover.ts` | Orquestração de failover |
+| `src/agents/pi-embedded-runner/run/stop-reason-recovery.ts` | Recovery de stops incompletos |
+| `src/agents/pi-embedded-runner/run/incomplete-turn.ts` | Recovery de turns incompletos |
+| `src/agents/pi-embedded-runner/run/failover-policy.ts` | Policy de failover de modelo |
+| `src/agents/configured-provider-fallback.ts` | Seleção de provider fallback |
+
+### Estratégias de Recovery
+
+```
+1. Rate limit → Retry com backoff exponencial
+2. Auth error → Tenta próximo provider configurado
+3. Context overflow → Compaction + retry
+4. Thinking error → Reduz thinking level e retenta
+5. Billing error → Alerta e para
+6. Incomplete stop → Continua o turn
+7. Model unavailable → Failover para modelo alternativo
+```
+
+## 11. Usage Tracking
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/agents/usage.ts` | Agregação e normalização de usage |
+| `src/agents/pi-embedded-runner/usage-accumulator.ts` | Acumulação entre attempts |
+| `src/agents/pi-embedded-runner/usage-reporting.ts` | Reporting de usage |
+| `src/agents/provider-attribution.ts` | Atribuição de usage a providers |
+
+## 12. Model Configuration e Seleção
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/agents/models-config.ts` | Loading de config de modelos |
+| `src/agents/models-config.providers.ts` | Definições de modelos por provider |
+| `src/agents/models-config.providers.normalize.ts` | Normalização de model IDs |
+| `src/agents/model-selection.ts` | Resolução de modelo a partir de strings e aliases |
+| `src/agents/model-auth.ts` | Resolução de API keys e auth headers |
+
+## 13. Provider Stream Wrappers
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `src/plugin-sdk/provider-stream.ts` | Factory e composição de stream wrappers |
+| `src/plugin-sdk/provider-stream-family.ts` | Famílias de stream built-in (google-thinking, moonshot, openai-responses) |
+| `src/plugin-sdk/provider-stream-shared.ts` | Utilidades de streaming compartilhadas |
+| `src/agents/pi-embedded-runner/openai-stream-wrappers.ts` | Wrapping de reasoning output OpenAI |
+| `src/agents/pi-embedded-runner/google-stream-wrappers.ts` | Wrapping de thinking payload Google |
+| `src/agents/pi-embedded-runner/moonshot-thinking-stream-wrappers.ts` | Wrapper Moonshot thinking |
+| `src/agents/pi-embedded-runner/proxy-stream-wrappers.ts` | Suporte a reasoning via proxy (OpenRouter, Kilocode) |
+
 ## Mapeamento para Go
 
 ### Structs
