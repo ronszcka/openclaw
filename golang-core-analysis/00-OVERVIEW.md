@@ -44,6 +44,7 @@ O mecanismo central do OpenClaw consiste em 7 subsistemas principais:
 | 06 | [06-CONFIG-PLUGINS.md](./06-CONFIG-PLUGINS.md) | Configuração, plugins, bootstrap |
 | 07 | [07-ROUTING-CHANNELS.md](./07-ROUTING-CHANNELS.md) | Roteamento de mensagens, canais, auto-reply |
 | 08 | [08-GOLANG-MIGRATION-GUIDE.md](./08-GOLANG-MIGRATION-GUIDE.md) | Guia de migração para Go + GORM |
+| 09 | [09-CLOUD-RUN-ARCHITECTURE.md](./09-CLOUD-RUN-ARCHITECTURE.md) | Arquitetura Cloud Run (wake → execute → sleep) |
 
 ## Stack Tecnológico Original
 
